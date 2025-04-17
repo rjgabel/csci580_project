@@ -17,6 +17,9 @@
 #define ONE_OVER_TWO_PI (1.0f / TWO_PI)
 #endif
 
+#define SPHERE 0
+#define PLANE 1
+
 struct Camera
 {
     vec3 position;
@@ -45,6 +48,12 @@ struct Plane
     vec3 color;
 };
 
+struct Object
+{
+    uint type;
+    uint index;
+};
+
 struct Sphere
 {
     vec3 center;
@@ -58,20 +67,20 @@ struct Ray
     vec3 direction;
 };
 
-in vec4 FragPos;
-
-uniform mat4 inv_view_proj;
-uniform Camera cam;
-uniform int specular_shader_type;
-
-vec3 ambient_color = vec3(1.0);
-float ambient_intensity = 0.2;
-
 Sphere sphere = Sphere(vec3(0, -1.0, -7.0), 1.0, vec3(1.0, 0.0, 0.0));
 
 Plane plane = Plane(vec3(0.0, 1.0, 0.0), vec3(0.0, -2.0, 0.0), vec3(0.0, 0.1, 0.8));
 
 PointLight pl = PointLight(vec3(-4.0, 1.0, 0.0), vec3(1.0, 1.0, 1.0));
+
+vec3 ambient_color = vec3(1.0);
+float ambient_intensity = 0.2;
+
+in vec4 FragPos;
+
+uniform mat4 inv_view_proj;
+uniform Camera cam;
+uniform int specular_shader_type;
 
 float intersectSphere(Ray ray, Sphere sphere)
 {
