@@ -11,4 +11,4 @@ target_sources(brdf_zoo_multipoint PUBLIC
 )
 target_include_directories(brdf_zoo_multipoint PUBLIC include)
 target_link_directories(brdf_zoo_multipoint PUBLIC lib)
-target_link_libraries(brdf_zoo_multipoint libglfw3.a libassimpd.a)
+target_link_libraries(brdf_zoo_multipoint libglfw3.a)

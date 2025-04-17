@@ -11,6 +11,9 @@
 #include <shader.hpp>
 #include <camera.hpp>
 
+using namespace std;
+using namespace glm;
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
@@ -20,7 +23,7 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-Camera camera(glm::vec3(0.0, 0.0, 3.0));
+Camera camera(vec3(0.0, 0.0, 3.0));
 
 bool firstMouse = true;
 float lastX = SCR_WIDTH / 2.0;
@@ -29,7 +32,9 @@ float lastY = SCR_HEIGHT / 2.0;
 float deltaTime = 0.0;
 float lastFrame = 0.0;
 
-glm::vec3 lightPos(1.2, 1.0, 2.0);
+// 0 = phong
+// 1 = blinn-phong
+int specular_shader_type = 0;
 
 int main()
 {
@@ -41,7 +46,7 @@ int main()
     GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
     if (window == NULL)
     {
-        std::cout << "Failed to create GLFW window" << std::endl;
+        cout << "Failed to create GLFW window" << endl;
         glfwTerminate();
         return -1;
     }
@@ -55,21 +60,22 @@ int main()
     }
 
     // Successfully loaded OpenGL
-    std::cout << "Loaded OpenGL " << GLAD_VERSION_MAJOR(version) << "." << GLAD_VERSION_MINOR(version) << std::endl;
+    cout << "Loaded OpenGL " << GLAD_VERSION_MAJOR(version) << "." << GLAD_VERSION_MINOR(version) << endl;
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
 
+    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
+    stbi_set_flip_vertically_on_load(true);
+
     glEnable(GL_DEPTH_TEST);
 
     Shader *lightingShader;
-    Shader *lightCubeShader;
     try
     {
         lightingShader = new Shader("worldspace.vs", "worldspace.fs");
-        lightCubeShader = new Shader("light_cube.vs", "light_cube.fs");
     }
     catch (const int e)
     {
@@ -77,80 +83,25 @@ int main()
         return e;
     }
 
-    // set up vertex data (and buffer(s)) and configure vertex attributes
-    // ------------------------------------------------------------------
     float vertices[] = {
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-
-         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
+        -1.0f, -1.0f, 0.0f, // bottom left
+         1.0f, -1.0f, 0.0f, // bottom right
+        -1.0f,  1.0f, 0.0f, // top left
+         1.0f,  1.0f, 0.0f  // top right
     };
 
-    // first, configure the cube's VAO (and VBO)
-    unsigned int VBO, cubeVAO;
-    glGenVertexArrays(1, &cubeVAO);
-    glGenBuffers(1, &VBO);
+    unsigned int VAO, VBO;
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
 
+    glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glBindVertexArray(cubeVAO);
-
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    // normal attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-
-    // second, configure the light's VAO (VBO stays the same; the vertices are the same for the light object which is also a 3D cube)
-    unsigned int lightCubeVAO;
-    glGenVertexArrays(1, &lightCubeVAO);
-    glBindVertexArray(lightCubeVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    // note that we update the lamp's position attribute's stride to reflect the updated buffer data
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);
 
+    lightingShader->use();
 
     // render loop
     // -----------
@@ -162,67 +113,28 @@ int main()
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // input
-        // -----
-        processInput(window);
-
         // render
         // ------
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // be sure to activate shader when setting uniforms/drawing objects
         lightingShader->use();
-        lightingShader->setVec3("light.position", lightPos);
-        lightingShader->setVec3("viewPos", camera.Position);
+        mat4 projection = perspective(radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 50.0f);
+        mat4 inv_view_proj = inverse(projection * camera.GetViewMatrix());
 
-        // light properties
-        glm::vec3 lightColor;
-        lightColor.x = static_cast<float>(sin(glfwGetTime() * 2.0));
-        lightColor.y = static_cast<float>(sin(glfwGetTime() * 0.7));
-        lightColor.z = static_cast<float>(sin(glfwGetTime() * 1.3));
-        glm::vec3 diffuseColor = lightColor   * glm::vec3(0.5f);
-        glm::vec3 ambientColor = diffuseColor * glm::vec3(0.2f);
+        lightingShader->setMat4("inv_view_proj", inv_view_proj);
+        lightingShader->setVec3("cam.position", camera.Position);
+        // lightingShader->setVec3("cam.forward", camera.Front);
+        // lightingShader->setVec3("cam.up", camera.Up);
+        // lightingShader->setVec3("cam.right", camera.Right);
+        lightingShader->setFloat("cam.near", 0.1);
+        lightingShader->setFloat("cam.far", 50.0);
+        lightingShader->setInt("specular_shader_type", specular_shader_type);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-        lightingShader->setVec3("light.ambient", ambientColor);
-        lightingShader->setVec3("light.diffuse", diffuseColor);
-        lightingShader->setVec3("light.ambient",  0.2f, 0.2f, 0.2f);
-        lightingShader->setVec3("light.diffuse",  0.5f, 0.5f, 0.5f);
-        lightingShader->setVec3("light.specular", 1.0f, 1.0f, 1.0f);
-
-        // material properties
-        lightingShader->setVec3("material.ambient", 1.0f, 0.5f, 0.31f);
-        lightingShader->setVec3("material.diffuse", 1.0f, 0.5f, 0.31f);
-        lightingShader->setVec3("material.specular", 0.5f, 0.5f, 0.5f);
-        lightingShader->setFloat("material.shininess", 32.0f);
-
-        // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = camera.GetViewMatrix();
-        lightingShader->setMat4("projection", projection);
-        lightingShader->setMat4("view", view);
-
-        // world transformation
-        glm::mat4 model = glm::mat4(1.0f);
-        lightingShader->setMat4("model", model);
-
-        // render the cube
-        glBindVertexArray(cubeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-
-        // also draw the lamp object
-        lightCubeShader->use();
-        lightCubeShader->setMat4("projection", projection);
-        lightCubeShader->setMat4("view", view);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, lightPos);
-        model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
-        lightCubeShader->setMat4("model", model);
-
-        glBindVertexArray(lightCubeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
+        // input
+        // -----
+        processInput(window);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -230,14 +142,12 @@ int main()
         glfwPollEvents();
     }
 
+    delete lightingShader;
+
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
-    glDeleteVertexArrays(1, &cubeVAO);
-    glDeleteVertexArrays(1, &lightCubeVAO);
+    glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    
-    delete lightingShader;
-    delete lightCubeShader;
 
     glfwTerminate();
     return 0;
@@ -278,6 +188,15 @@ void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
     {
         camera.ProcessKeyboard(DOWN, deltaTime);
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS)
+    {
+        specular_shader_type = 0;
+    }
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+    {
+        specular_shader_type = 1;
     }
 }
 
