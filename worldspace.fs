@@ -1,4 +1,5 @@
 #version 330 core
+out vec4 FragColor;
 
 // PIs
 #ifndef PI
@@ -20,11 +21,25 @@
 #define SPHERE 0
 #define PLANE 1
 
+#define EPSILON 1e-4
+
 struct Camera
 {
     vec3 position;
     float near;
     float far;
+};
+
+struct Ray
+{
+    vec3 origin;
+    vec3 direction;
+};
+
+struct Hit
+{
+    int obj_id;
+    float dist;
 };
 
 // struct Material
@@ -41,17 +56,18 @@ struct PointLight
     vec3 color;
 };
 
+struct Object
+{
+    int type;
+    int index;
+};
+
 struct Plane
 {
     vec3 normal;
     vec3 point;
     vec3 color;
-};
-
-struct Object
-{
-    uint type;
-    uint index;
+    float reflectivity;
 };
 
 struct Sphere
@@ -59,17 +75,26 @@ struct Sphere
     vec3 center;
     float radius;
     vec3 color;
+    float reflectivity;
 };
 
-struct Ray
-{
-    vec3 origin;
-    vec3 direction;
-};
+const Object obj_list[] = Object[]
+(
+    Object(SPHERE, 0),
+    Object(SPHERE, 1),
+    Object(PLANE, 0)
+);
 
-Sphere sphere = Sphere(vec3(0, -1.0, -7.0), 1.0, vec3(1.0, 0.0, 0.0));
+const Sphere sphere_list[] = Sphere[]
+(
+    Sphere(vec3(0, -1.0, -7.0), 1.0, vec3(1.0, 0.0, 0.0), 0.0),
+    Sphere(vec3(3.0, -1.0, -7.0), 1.0, vec3(1.0, 1.0, 0.0), 0.0)
+);
 
-Plane plane = Plane(vec3(0.0, 1.0, 0.0), vec3(0.0, -2.0, 0.0), vec3(0.0, 0.1, 0.8));
+const Plane plane_list[] = Plane[]
+(
+    Plane(vec3(0.0, 1.0, 0.0), vec3(0.0, -2.0, 0.0), vec3(0.0, 0.1, 0.8), 0.5)
+);
 
 PointLight pl = PointLight(vec3(-4.0, 1.0, 0.0), vec3(1.0, 1.0, 1.0));
 
@@ -82,21 +107,41 @@ uniform mat4 inv_view_proj;
 uniform Camera cam;
 uniform int specular_shader_type;
 
+float length2(vec3 a);
+vec3 rayPoint(Ray ray, float t);
+float intersectSphere(Ray ray, Sphere sphere);
+vec3 sphereNormal(vec3 point, Sphere sphere);
+float intersectPlane(Ray ray, Plane plane);
+Hit closestHit(Ray ray);
+vec3 lambertianDiffuse(vec3 N, vec3 L, vec3 diffuse_color, vec3 light_color);
+vec3 phongSpecular(vec3 N, vec3 L, vec3 V, vec3 specular_color, vec3 light_color, float shininess);
+vec3 blinnPhongSpecular(vec3 N, vec3 L, vec3 V, vec3 specular_color, vec3 light_color, float shininess);
+vec3 castRay(Ray ray);
+vec3 shade(Ray ray, vec3 hit_point, vec3 normal, vec3 obj_color);
+
+float length2(vec3 a)
+{
+    return dot(a, a);
+}
+
+vec3 rayPoint(Ray ray, float t)
+{
+    return ray.origin + ray.direction * t;
+}
+
 float intersectSphere(Ray ray, Sphere sphere)
 {
-	// Sphere center to ray origin
-    vec3 co = ray.origin - sphere.center;
+    vec3 c_o = ray.origin - sphere.center;
+    float b = dot(ray.direction, c_o);
+    float c = length2(c_o) - sphere.radius * sphere.radius;
+    float disc = b * b - c;
 
-	// The discriminant is negative for a miss, or a postive value
-	// used to calcluate the distance from the ray origin to point of intersection
-    //bear in mind that there may be more than one solution
-    float discriminant = dot(co, ray.direction) * dot(co, ray.direction) - (dot(co, co) - sphere.radius * sphere.radius);
+    if (disc >= 0.0)
+    {
+        return -b - sqrt(disc);
+    }
 
-	// If answer is not negative, get ray intersection depth
-    if (discriminant >= 0.0)
-        return -dot(ray.direction, co) - sqrt(discriminant);
-    else
-        return -1.; // Any negative number to indicate no intersect
+    return -1.0; // No intersect
 }
 
 vec3 sphereNormal(vec3 point, Sphere sphere)
@@ -107,53 +152,85 @@ vec3 sphereNormal(vec3 point, Sphere sphere)
 float intersectPlane(Ray ray, Plane plane)
 {
     float denominator = dot(ray.direction, plane.normal);
-    if (abs(denominator) >= 0.01)
-    {//make sure Ray is not parallel to plane (or nearly parallel)
+
+    if (abs(denominator) >= EPSILON)
+    {
         return dot((plane.point - ray.origin), plane.normal) / denominator;
     }
-    return -1.0; // Any negative number to indicate no intersect (or intersection from behind)
+
+    return -1.0; // No intersect
 }
 
-//Get the direction to the light source (no shadows simplifies check)
-vec3 checkLight(vec3 intersect, PointLight light)
+Hit closestHit(Ray ray)
 {
-    return normalize(light.position - intersect);
+    Hit closest_hit = Hit(-1, 1.0 / 0.0);
+
+    for (int i = 0; i < obj_list.length(); i++)
+    {
+        float check_dist = -1;
+        switch (obj_list[i].type)
+        {
+            case SPHERE:
+                check_dist = intersectSphere(ray, sphere_list[obj_list[i].index]);
+                break;
+            case PLANE:
+                check_dist = intersectPlane(ray, plane_list[obj_list[i].index]);
+                break;
+        }
+
+        if (check_dist > EPSILON && check_dist < closest_hit.dist)
+        {
+            closest_hit.obj_id = i;
+            closest_hit.dist = check_dist;
+        }
+    }
+
+    return closest_hit;
 }
 
-vec3 lambertianDiffuse(vec3 normal, vec3 to_light, vec3 diffuse_color, vec3 light_color)
+vec3 lambertianDiffuse(vec3 N, vec3 L, vec3 diffuse_color, vec3 light_color)
 {
-    return max(0.0, dot(normal, to_light)) * diffuse_color * light_color;
+    return max(0.0, dot(N, L)) * diffuse_color * light_color;
 }
 
-vec3 phongSpecular(vec3 normal, vec3 to_light, vec3 to_viewer, vec3 specular_color, vec3 light_color, float shininess)
+vec3 phongSpecular(vec3 N, vec3 L, vec3 V, vec3 specular_color, vec3 light_color, float shininess)
 {
     float energy_conserve = 1.0;
     // energy_conserve = (2.0 + shininess) / (2.0 * PI);
-    vec3 reflected = reflect(-to_light, normal);
-    vec3 result = energy_conserve * pow(max(0.0, dot(reflected, to_viewer)), shininess) * specular_color * light_color;
-    result *= max(0.0, dot(to_light, normal));
+    vec3 R = reflect(-L, N);
+    vec3 result = energy_conserve * pow(max(0.0, dot(R, V)), shininess) * specular_color * light_color;
+    result *= max(0.0, dot(L, N));
     return result;
 }
 
-vec3 blinnPhongSpecular(vec3 normal, vec3 to_light, vec3 to_viewer, vec3 specular_color, vec3 light_color, float shininess)
+vec3 blinnPhongSpecular(vec3 N, vec3 L, vec3 V, vec3 specular_color, vec3 light_color, float shininess)
 {
     float energy_conserve = 1.0;
     // energy_conserve = (8.0 + shininess) / (8.0 * PI);
-    vec3 halfway = normalize(to_light + to_viewer);
-    vec3 result = energy_conserve * pow(max(0.0, dot(halfway, normal)), shininess * 4.0) * max(0.0, dot(to_light, normal)) * specular_color * light_color;
-    result *= max(0.0, dot(to_light, normal));
+    vec3 H = normalize(L + V);
+    vec3 result = energy_conserve * pow(max(0.0, dot(H, N)), shininess * 4.0) * max(0.0, dot(L, N)) * specular_color * light_color;
+    result *= max(0.0, dot(L, N));
     return result;
 }
 
-vec3 shade(Ray ray, float depth, vec3 normal, PointLight pl, vec3 obj_color, bool inside_shadow)
+vec3 shade(Ray ray, vec3 hit_point, vec3 normal, vec3 obj_color)
 {
-    vec3 hit = ray.origin + ray.direction * depth;
-    vec3 to_light = checkLight(hit, pl);
-
+    // vec3 hit_point = rayPoint(ray, depth);
     vec3 result = vec3(0);
 
     // ambient
     result = obj_color * ambient_color * ambient_intensity;
+
+    vec3 to_light = normalize(pl.position - hit_point);
+
+    bool inside_shadow = false;
+
+    Hit check_occlusion = closestHit(Ray(hit_point, to_light));
+
+    if (check_occlusion.obj_id != -1 && check_occlusion.dist < distance(pl.position, hit_point))
+    {
+        inside_shadow = true;
+    }
 
     if (!inside_shadow)
     {
@@ -175,6 +252,60 @@ vec3 shade(Ray ray, float depth, vec3 normal, PointLight pl, vec3 obj_color, boo
     return result;
 }
 
+vec3 castRay(Ray ray)
+{
+    vec3 result = vec3(0);
+
+    Ray curr_ray = ray;
+    float reflect_mult = 1.0;
+
+    for (int i = 0; i < 5; i++)
+    {
+        Hit closest_hit = closestHit(curr_ray);
+
+        if (closest_hit.obj_id != -1 && closest_hit.dist > cam.near && closest_hit.dist < cam.far)
+        {
+            vec3 hit_point = rayPoint(curr_ray, closest_hit.dist);
+            vec3 normal;
+            vec3 obj_color;
+            float reflectivity;
+            switch (obj_list[closest_hit.obj_id].type)
+            {
+                case SPHERE:
+                    normal = sphereNormal(hit_point, sphere_list[obj_list[closest_hit.obj_id].index]);
+                    obj_color = sphere_list[obj_list[closest_hit.obj_id].index].color;
+                    reflectivity = sphere_list[obj_list[closest_hit.obj_id].index].reflectivity;
+                    break;
+                case PLANE:
+                    normal = plane_list[obj_list[closest_hit.obj_id].index].normal;
+                    obj_color = plane_list[obj_list[closest_hit.obj_id].index].color;
+                    reflectivity = plane_list[obj_list[closest_hit.obj_id].index].reflectivity;
+                    break;
+            }
+
+            vec3 part_result = shade(curr_ray, hit_point, normal, obj_color) * reflect_mult;
+
+            if (reflectivity > 0.0)
+            {
+                part_result *= (1 - reflectivity);
+                
+                vec3 reflect_vec = reflect(curr_ray.direction, normal);
+                curr_ray = Ray(hit_point, reflect_vec);
+                reflect_mult *= reflectivity;
+
+                result += part_result;
+            }
+            else
+            {
+                result += part_result;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
 void main()
 {
     vec4 worldPos = inv_view_proj * FragPos;
@@ -185,77 +316,5 @@ void main()
     //Create Ray struct from origin through current pixel
     Ray ray = Ray(cam.position, rayDir);
 
-    // Check if the ray from the camera through the pixel intersects the sphere
-    float sphereDepth = intersectSphere(ray, sphere);
-    float planeDepth = intersectPlane(ray, plane);
-
-    bool sphereHit = sphereDepth > cam.near && sphereDepth < cam.far;
-    bool planeHit = planeDepth > cam.near && planeDepth < cam.far;
-
-    if (sphereHit)
-    {
-        if (planeDepth < sphereDepth && planeHit)
-        {
-            vec3 plane_normal = plane.normal;
-            vec3 plane_color = shade(ray, planeDepth, plane_normal, pl, plane.color, true);
-
-            gl_FragColor = vec4(plane_color * 0.5, 1);
-        }
-        else
-        {
-            vec3 hit_point = ray.origin + ray.direction * sphereDepth;
-            vec3 sphere_normal = sphereNormal(hit_point, sphere);
-            vec3 sphere_color = shade(ray, sphereDepth, sphere_normal, pl, sphere.color, false);
-
-            gl_FragColor = vec4(sphere_color, 1);
-        }
-    }
-    else if (planeHit)
-    {
-
-        vec3 hit_point = ray.origin + ray.direction * planeDepth;
-        vec3 to_light = normalize(pl.position - hit_point);
-        vec3 view_light = normalize(pl.position - cam.position);
-        Ray light_ray = Ray(hit_point, to_light);
-        Ray view_light_ray = Ray(cam.position, view_light);
-
-        float sphere_check = intersectSphere(light_ray, sphere);
-        float block_check = intersectPlane(view_light_ray, plane);
-        float block_dist = length(view_light_ray.direction * block_check);
-        float view_light_dist = length(pl.position - cam.position);
-        bool inside_shadow = (sphere_check > 0.0 && sphere_check < cam.far) || (block_check > 0.0 && block_dist < view_light_dist);
-
-        vec3 plane_normal = plane.normal;
-        vec3 plane_color = shade(ray, planeDepth, plane_normal, pl, plane.color, inside_shadow);
-
-        vec3 reflected_color = vec3(0.0, 0.0, 0.0);
-        vec3 reflect_dir = reflect(ray.direction, plane_normal);
-        Ray reflect_ray = Ray(hit_point, reflect_dir);
-        float second_depth = intersectSphere(reflect_ray, sphere);
-        if (second_depth > 0.01 && second_depth < cam.far)
-        {
-            vec3 second_obj_loc = reflect_ray.origin + reflect_ray.direction * second_depth;
-            Ray cam_to_sphere = Ray(cam.position, normalize(second_obj_loc - cam.position));
-
-            float r_sphere_depth = intersectSphere(cam_to_sphere, sphere);
-
-            if (r_sphere_depth > cam.near && r_sphere_depth < cam.far)
-            {
-			    //we hit the sphere in the reflection
-                vec3 hit_point_r = reflect_ray.origin + reflect_ray.direction * second_depth;
-                vec3 sphere_normal = sphereNormal(hit_point_r, sphere);
-                reflected_color = shade(reflect_ray, second_depth, sphere_normal, pl, sphere.color, false);
-
-            }
-
-        }
-
-        gl_FragColor = vec4(plane_color * 0.5 + reflected_color * 0.5, 1);
-
-    }
-    else
-    {
-        // else draw background color (black)
-        gl_FragColor = vec4(0, 0, 0, 1);
-    }
+    FragColor = vec4(castRay(ray), 0);
 }
