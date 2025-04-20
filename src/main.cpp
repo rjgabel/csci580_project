@@ -119,7 +119,7 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         lightingShader->use();
-        mat4 projection = perspective(radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 50.0f);
+        mat4 projection = perspective(radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
         mat4 inv_view_proj = inverse(projection * camera.GetViewMatrix());
 
         lightingShader->setMat4("inv_view_proj", inv_view_proj);
@@ -128,7 +128,7 @@ int main()
         // lightingShader->setVec3("cam.up", camera.Up);
         // lightingShader->setVec3("cam.right", camera.Right);
         lightingShader->setFloat("cam.near", 0.1);
-        lightingShader->setFloat("cam.far", 50.0);
+        lightingShader->setFloat("cam.far", 1000.0);
         lightingShader->setInt("specular_shader_type", specular_shader_type);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
