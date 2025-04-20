@@ -217,6 +217,33 @@ vec3 blinnPhongSpecular(vec3 N, vec3 L, vec3 V, vec3 specular_color, vec3 light_
     return result;
 }
 
+vec3 orenNayarSpecular(vec3 normal, vec3 to_light, vec3 to_viewer, vec3 specular_color, vec3 light_color, float shininess)
+{
+    float energy_conserve = 1.0;
+    // energy_conserve = (2.0 + shininess) / (2.0 * PI);
+    vec3 reflected = reflect(-to_light, normal);
+
+    float variance = 1.0;
+    float a = 1.0 - 0.5 * variance / (variance + 0.33);
+    float b = 0.45 * variance / (variance + 0.09);
+
+    vec3 pproj_v = normalize(to_viewer - dot(to_viewer, normal) * normal);
+    vec3 pproj_l = normalize(to_light - dot(to_viewer, normal) * normal);
+    float phi_v = acos(dot(to_viewer, pproj_v));
+    float phi_l = acos(dot(to_light, pproj_l));
+
+    float theta_l = acos(dot(normal, to_light));
+    float theta_v = acos(dot(normal, to_viewer));
+    float alpha = max(theta_l, theta_v);
+    float beta = min(theta_l, theta_v);
+
+    float on = a + b * max(0, cos(phi_v - phi_l)) * sin(alpha) * tan(beta);
+
+    vec3 result = energy_conserve * pow(max(0.0, dot(reflected, to_viewer)), shininess) * on * specular_color * light_color;
+    result *= max(0.0, dot(to_light, normal));
+    return result;
+}
+
 vec3 shade(Ray ray, vec3 hit_point, vec3 normal, vec3 obj_color)
 {
     vec3 result = vec3(0);
