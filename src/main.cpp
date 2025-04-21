@@ -32,9 +32,14 @@ float lastY = SCR_HEIGHT / 2.0;
 float deltaTime = 0.0;
 float lastFrame = 0.0;
 
-// 0 = phong
-// 1 = blinn-phong
+// Key : Code = Type
+// 0 : 0 = phong
+// 1 : 1 = blinn-phong
 int specular_shader_type = 0;
+
+// L : 0 = lambertian
+// O : 1 = oren-nayar
+int diffuse_shader_type = 0;
 
 int main()
 {
@@ -43,7 +48,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "BRDF Zoo", NULL, NULL);
     if (window == NULL)
     {
         cout << "Failed to create GLFW window" << endl;
@@ -130,6 +135,7 @@ int main()
         lightingShader->setFloat("cam.near", 0.1);
         lightingShader->setFloat("cam.far", 1000.0);
         lightingShader->setInt("specular_shader_type", specular_shader_type);
+        lightingShader->setInt("diffuse_shader_type", diffuse_shader_type);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         // input
@@ -197,6 +203,15 @@ void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
     {
         specular_shader_type = 1;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
+    {
+        diffuse_shader_type = 0;
+    }
+    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
+    {
+        diffuse_shader_type = 1;
     }
 }
 

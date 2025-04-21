@@ -43,20 +43,9 @@ public:
     float MouseSensitivity;
     float Zoom;
 
-    // constructor with vectors
-    Camera(vec3 position = vec3(0.0f, 0.0f, 0.0f), vec3 up = vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : Front(vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
+    Camera(vec3 position = vec3(0.0f, 0.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : WorldUp(vec3(0.0f, 1.0f, 0.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
     {
         Position = position;
-        WorldUp = up;
-        Yaw = yaw;
-        Pitch = pitch;
-        updateCameraVectors();
-    }
-    // constructor with scalar values
-    Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch) : Front(vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
-    {
-        Position = vec3(posX, posY, posZ);
-        WorldUp = vec3(upX, upY, upZ);
         Yaw = yaw;
         Pitch = pitch;
         updateCameraVectors();
@@ -74,39 +63,45 @@ public:
         float velocity = MovementSpeed * deltaTime;
         vec3 change;
 
-        if (direction == FORWARD)
-        {
-            change = Front * velocity;
-        }
-        if (direction == BACKWARD)
-        {
-            change = -Front * velocity;
-        }
-        if (direction == LEFT)
-        {
-            change = -Right * velocity;
-        }
-        if (direction == RIGHT)
-        {
-            change = Right * velocity;
-        }
-        if (direction == UP)
-        {
-            change = Up * velocity;
-        }
-        if (direction == DOWN)
-        {
-            change = -Up * velocity;
-        }
-
         if (direction != UP && direction != DOWN)
         {
+            vec3 horizontal_front = normalize(vec3(Front.x, 0, Front.z));
+            vec3 horizontal_right = normalize(vec3(Right.x, 0, Right.z));
+
+            if (direction == FORWARD)
+            {
+                change = horizontal_front * velocity;
+            }
+            if (direction == BACKWARD)
+            {
+                change = -horizontal_front * velocity;
+            }
+            if (direction == LEFT)
+            {
+                change = -horizontal_right * velocity;
+            }
+            if (direction == RIGHT)
+            {
+                change = horizontal_right * velocity;
+            }
+
             Position += vec3(change.x, 0.0f, change.z);
         }
         else
         {
+            if (direction == UP)
+            {
+                change = WorldUp * velocity;
+            }
+            if (direction == DOWN)
+            {
+                change = -WorldUp * velocity;
+            }
+
             Position += vec3(0.0f, change.y, 0.0f);
         }
+
+        Position = clamp(Position, vec3(-10.0, -2.0, -15.0), vec3(10.0, 10.0, 15.0));
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.

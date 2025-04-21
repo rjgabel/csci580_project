@@ -6,22 +6,34 @@ out vec4 FragColor;
 #define PI 3.141592653589f
 #endif
 
-#ifndef TWO_PI
-#define TWO_PI (2.0f * PI)
-#endif
-
 #ifndef ONE_OVER_PI
 #define ONE_OVER_PI (1.0f / PI)
 #endif
 
 #ifndef ONE_OVER_TWO_PI
-#define ONE_OVER_TWO_PI (1.0f / TWO_PI)
+#define ONE_OVER_TWO_PI (1.0f / (2.0f * PI))
 #endif
+
+#ifndef ONE_OVER_FOUR_PI
+#define ONE_OVER_FOUR_PI (1.0f / (4.0f * PI))
+#endif
+
+#ifndef ONE_OVER_EIGHT_PI
+#define ONE_OVER_EIGHT_PI (1.0f / (8.0f * PI))
+#endif
+
+#define EPSILON 1e-5
 
 #define SPHERE 0
 #define PLANE 1
 
-#define EPSILON 1e-4
+// Specular Type Codes
+#define PHONG 0
+#define BLINN_PHONG 1
+
+// Diffuse Type Codes
+#define LAMBERTIAN 0
+#define OREN_NAYAR 1
 
 struct Camera
 {
@@ -42,19 +54,12 @@ struct Hit
     float dist;
 };
 
-// struct Material
-// {
-//     vec3 ambient;
-//     vec3 diffuse;
-//     vec3 specular;
-//     float shininess;
-// };
-
-struct Light
+struct Material
 {
-    vec3 position;
     vec3 color;
-    float intensity;
+    float metalness;
+    float roughness;
+    float reflectance;
 };
 
 struct Object
@@ -63,11 +68,18 @@ struct Object
     int index;
 };
 
+struct Light
+{
+    vec3 position;
+    vec3 color;
+    float power;
+};
+
 struct Plane
 {
     vec3 normal;
     vec3 point;
-    vec3 color;
+    Material material;
     float reflectivity;
 };
 
@@ -75,9 +87,26 @@ struct Sphere
 {
     vec3 center;
     float radius;
-    vec3 color;
+    Material material;
     float reflectivity;
 };
+
+in vec4 FragPos;
+
+uniform mat4 inv_view_proj;
+uniform Camera cam;
+uniform int specular_shader_type;
+uniform int diffuse_shader_type;
+
+vec3 ambient_color = vec3(1.0);
+float ambient_intensity = 0.05;
+
+const Material material_list[] = Material[]
+(
+    Material(vec3(1.0, 0.1, 0.1), 0.2, 0.6, 0.5),
+    Material(vec3(0.1, 1.0, 0.1), 0.2, 0.6, 0.5),
+    Material(vec3(0.1, 0.1, 1.0), 0.8, 0.5, 0.5)
+);
 
 const Object obj_list[] = Object[]
 (
@@ -91,42 +120,28 @@ const Object obj_list[] = Object[]
     Object(PLANE, 5)
 );
 
+const Light light_list[] = Light[]
+(
+    Light(vec3(0.0, 1.0, 0.0), vec3(1.0, 1.0, 1.0), 400.0),
+    Light(vec3(-8.0, 8.0, -10.0), vec3(1.0, 1.0, 1.0), 400.0),
+    Light(vec3(8.0, 8.0, -10.0), vec3(1.0, 1.0, 1.0), 400.0)
+);
+
 const Sphere sphere_list[] = Sphere[]
 (
-    Sphere(vec3(0, -1.0, -7.0), 1.0, vec3(1.0, 0.0, 0.0), 0.01),
-    Sphere(vec3(3.0, -1.0, -7.0), 1.0, vec3(0.0, 1.0, 0.0), 0.01)
+    Sphere(vec3(-3.0, -1.0, -7.0), 1.0, material_list[0], 0.01),
+    Sphere(vec3(3.0, -1.0, -7.0), 1.0, material_list[1], 0.01)
 );
 
 const Plane plane_list[] = Plane[]
 (
-    Plane(vec3(0.0, 1.0, 0.0), vec3(0.0, -2.0, 0.0), vec3(0.0, 0.1, 0.8), 0.5),
-    Plane(vec3(1.0, 0.0, 0.0), vec3(-10.0, 0.0, 0.0), vec3(0.0, 0.1, 0.8), 0.5),
-    Plane(vec3(-1.0, 0.0, 0.0), vec3(10.0, 0.0, 0.0), vec3(0.0, 0.1, 0.8), 0.5),
-    Plane(vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, -15.0), vec3(0.0, 0.1, 0.8), 0.5),
-    Plane(vec3(0.0, -1.0, 0.0), vec3(0.0, 10.0, 0.0), vec3(0.0, 0.1, 0.8), 0.5),
-    Plane(vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, 15.0), vec3(0.0, 0.1, 0.8), 0.5)
+    Plane(vec3(0.0, 1.0, 0.0), vec3(0.0, -2.0, 0.0), material_list[2], 0.5),
+    Plane(vec3(1.0, 0.0, 0.0), vec3(-10.0, 0.0, 0.0), material_list[2], 0.5),
+    Plane(vec3(-1.0, 0.0, 0.0), vec3(10.0, 0.0, 0.0), material_list[2], 0.5),
+    Plane(vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, -15.0), material_list[2], 0.5),
+    Plane(vec3(0.0, -1.0, 0.0), vec3(0.0, 10.0, 0.0), material_list[2], 0.5),
+    Plane(vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, 15.0), material_list[2], 0.5)
 );
-
-const Light light_list[] = Light[]
-(
-    Light(vec3(0.0, 1.0, 0.0), vec3(1.0, 1.0, 1.0), 100.0),
-    Light(vec3(-8.0, 8.0, -10.0), vec3(1.0, 1.0, 1.0), 500.0),
-    Light(vec3(8.0, 8.0, -10.0), vec3(1.0, 1.0, 1.0), 500.0)
-);
-
-vec3 ambient_color = vec3(1.0);
-float ambient_intensity = 0.1;
-
-in vec4 FragPos;
-
-uniform mat4 inv_view_proj;
-uniform Camera cam;
-uniform int specular_shader_type;
-
-float length2(vec3 a)
-{
-    return dot(a, a);
-}
 
 vec3 rayPoint(Ray ray, float t)
 {
@@ -137,7 +152,7 @@ float intersectSphere(Ray ray, Sphere sphere)
 {
     vec3 c_o = ray.origin - sphere.center;
     float b = dot(ray.direction, c_o);
-    float c = length2(c_o) - sphere.radius * sphere.radius;
+    float c = dot(c_o, c_o) - sphere.radius * sphere.radius;
     float disc = b * b - c;
 
     if (disc >= 0.0)
@@ -192,64 +207,55 @@ Hit closestHit(Ray ray)
     return closest_hit;
 }
 
-vec3 lambertianDiffuse(vec3 N, vec3 L, vec3 diffuse_color, vec3 light_color)
+vec3 lambertianDiffuse(vec3 N, vec3 L, vec3 diffuse_reflectance, vec3 light_color)
 {
-    return (diffuse_color / PI) * max(0.0, dot(N, L)) * light_color;
+    return diffuse_reflectance * ONE_OVER_PI * max(0.0, dot(N, L)) * light_color;
 }
 
-vec3 phongSpecular(vec3 N, vec3 L, vec3 V, vec3 specular_color, vec3 light_color, float shininess)
+vec3 orenNayarDiffuse(vec3 N, vec3 L, vec3 V, vec3 diffuse_reflectance, float sigma, vec3 light_color)
 {
-    float energy_conserve = 1.0;
-    energy_conserve = (8.0 + shininess) / (8.0 * PI);
-    vec3 R = reflect(-L, N);
-    vec3 result = energy_conserve * pow(max(0.0, dot(R, V)), shininess) * specular_color * light_color;
-    result *= max(0.0, dot(L, N));
-    return result;
-}
+    float A = 1.0 - 0.5 * sigma / (sigma + 0.33);
+    float B = 0.45 * sigma / (sigma + 0.09);
 
-vec3 blinnPhongSpecular(vec3 N, vec3 L, vec3 V, vec3 specular_color, vec3 light_color, float shininess)
-{
-    float energy_conserve = 1.0;
-    energy_conserve = (8.0 + shininess) / (8.0 * PI);
-    vec3 H = normalize(L + V);
-    vec3 result = energy_conserve * pow(max(0.0, dot(H, N)), shininess * 4.0) * max(0.0, dot(L, N)) * specular_color * light_color;
-    result *= max(0.0, dot(L, N));
-    return result;
-}
+    vec3 proj_V = normalize(V - dot(V, N) * N);
+    vec3 proj_L = normalize(L - dot(V, N) * N);
+    float cos_phi_diff = max(0, dot(proj_V, proj_L));
 
-vec3 orenNayarSpecular(vec3 normal, vec3 to_light, vec3 to_viewer, vec3 specular_color, vec3 light_color, float shininess)
-{
-    float energy_conserve = 1.0;
-    // energy_conserve = (2.0 + shininess) / (2.0 * PI);
-    vec3 reflected = reflect(-to_light, normal);
-
-    float variance = 1.0;
-    float a = 1.0 - 0.5 * variance / (variance + 0.33);
-    float b = 0.45 * variance / (variance + 0.09);
-
-    vec3 pproj_v = normalize(to_viewer - dot(to_viewer, normal) * normal);
-    vec3 pproj_l = normalize(to_light - dot(to_viewer, normal) * normal);
-    float phi_v = acos(dot(to_viewer, pproj_v));
-    float phi_l = acos(dot(to_light, pproj_l));
-
-    float theta_l = acos(dot(normal, to_light));
-    float theta_v = acos(dot(normal, to_viewer));
+    float theta_l = acos(dot(N, L));
+    float theta_v = acos(dot(N, V));
     float alpha = max(theta_l, theta_v);
     float beta = min(theta_l, theta_v);
+    
+    float k = (A + B * cos_phi_diff) * sin(alpha) * tan(beta) * max(0.0, dot(L, N));
 
-    float on = a + b * max(0, cos(phi_v - phi_l)) * sin(alpha) * tan(beta);
-
-    vec3 result = energy_conserve * pow(max(0.0, dot(reflected, to_viewer)), shininess) * on * specular_color * light_color;
-    result *= max(0.0, dot(to_light, normal));
+    vec3 result = diffuse_reflectance * ONE_OVER_PI * k * light_color;
     return result;
 }
 
-vec3 shade(Ray ray, vec3 hit_point, vec3 normal, vec3 obj_color)
+vec3 phongSpecular(vec3 N, vec3 L, vec3 V, vec3 spec_f0, vec3 light_color, float shininess)
+{
+    float energy_conserve = (shininess + 2.0) * ONE_OVER_TWO_PI;
+    vec3 R = reflect(-L, N);
+    float k = pow(max(0.0, dot(R, V)), shininess) * max(0.0, dot(L, N));
+    vec3 result = energy_conserve * k * spec_f0 * light_color;
+    return result;
+}
+
+vec3 blinnPhongSpecular(vec3 N, vec3 L, vec3 V, vec3 spec_f0, vec3 light_color, float shininess)
+{
+    float energy_conserve = ((shininess + 2.0) * (shininess + 4.0)) * ONE_OVER_EIGHT_PI / (pow(2.0, -shininess / 2.0) + shininess);
+    vec3 H = normalize(L + V);
+    float k = pow(max(0.0, dot(H, N)), shininess) * max(0.0, dot(L, N));
+    vec3 result = energy_conserve * k * spec_f0 * light_color;
+    return result;
+}
+
+vec3 shade(Ray ray, vec3 hit_point, vec3 normal, Material material)
 {
     vec3 result = vec3(0);
 
     // ambient
-    result = obj_color * ambient_color * ambient_intensity;
+    result = material.color * ambient_color * ambient_intensity;
 
     for (int i = 0; i < light_list.length(); i++)
     {
@@ -267,21 +273,45 @@ vec3 shade(Ray ray, vec3 hit_point, vec3 normal, vec3 obj_color)
 
         if (!inside_shadow)
         {
-            vec3 light_color = light_list[i].color * light_list[i].intensity / (4.0 * PI * to_light_dist * to_light_dist);
+            float to_light_dist2 = max(EPSILON, to_light_dist * to_light_dist);
 
-            // diffuse
-            result += lambertianDiffuse(normal, to_light, obj_color, light_color);
+            // light intensity
+            vec3 light_color = light_list[i].color * light_list[i].power * ONE_OVER_FOUR_PI / to_light_dist2;
+
+            // beckmann roughness
+            float alpha = material.roughness * material.roughness;
 
             // specular
-            vec3 specular_color = vec3(1.0, 1.0, 1.0);
-            if (specular_shader_type == 0)
+            vec3 specular;
+            vec3 min_dielectric_F0 = vec3(0.16f * material.reflectance * material.reflectance);
+            vec3 spec_F0 = mix(min_dielectric_F0, material.color, material.metalness);
+            if (specular_shader_type == PHONG)
             {
-                result += phongSpecular(to_light, normal, -ray.direction, specular_color, light_color, 16.0);
+                float shininess = 2.0 / min(1 - EPSILON, max(EPSILON, alpha * alpha)) - 2.0;
+                specular = phongSpecular(to_light, normal, -ray.direction, spec_F0, light_color, shininess);
             }
-            else if (specular_shader_type == 1)
+            else if (specular_shader_type == BLINN_PHONG)
             {
-                result += blinnPhongSpecular(to_light, normal, -ray.direction, specular_color, light_color, 16.0);
+                float shininess = 2.0 / min(1 - EPSILON, max(EPSILON, alpha * alpha)) - 2.0;
+                shininess *= 4.0;
+                specular = blinnPhongSpecular(to_light, normal, -ray.direction, spec_F0, light_color, shininess);
             }
+            result += specular;
+
+            // diffuse
+            vec3 diffuse;
+            vec3 diffuse_reflectance = material.color * (1.0 - material.metalness);
+            if (diffuse_shader_type == LAMBERTIAN)
+            {
+                diffuse = lambertianDiffuse(normal, to_light, diffuse_reflectance, light_color);
+            }
+            else if (diffuse_shader_type == OREN_NAYAR)
+            {
+                // beckmann roughness to oren-nayar roughness
+                float sigma = 0.7071068 * atan(alpha);
+                diffuse = orenNayarDiffuse(normal, to_light, -ray.direction, diffuse_reflectance, sigma, light_color);
+            }
+            result += diffuse;
         }
     }
 
@@ -304,18 +334,18 @@ vec3 castRay(Ray ray)
         {
             vec3 hit_point = rayPoint(curr_ray, closest_hit.dist);
             vec3 normal;
-            vec3 obj_color;
-            float reflectivity;
+            Material material;
+            float reflectivity = 0;
             switch (obj_list[closest_hit.obj_id].type)
             {
                 case SPHERE:
                     normal = sphereNormal(hit_point, sphere_list[obj_list[closest_hit.obj_id].index]);
-                    obj_color = sphere_list[obj_list[closest_hit.obj_id].index].color;
+                    material = sphere_list[obj_list[closest_hit.obj_id].index].material;
                     reflectivity = sphere_list[obj_list[closest_hit.obj_id].index].reflectivity;
                     break;
                 case PLANE:
                     normal = plane_list[obj_list[closest_hit.obj_id].index].normal;
-                    obj_color = plane_list[obj_list[closest_hit.obj_id].index].color;
+                    material = plane_list[obj_list[closest_hit.obj_id].index].material;
                     reflectivity = plane_list[obj_list[closest_hit.obj_id].index].reflectivity;
                     break;
             }
@@ -329,7 +359,7 @@ vec3 castRay(Ray ray)
 
             if (reflectivity < 1.0)
             {
-                part_result = shade(curr_ray, hit_point, normal, obj_color) * reflect_mult;
+                part_result = shade(curr_ray, hit_point, normal, material) * reflect_mult;
             }
 
             if (reflectivity > 0.0)
