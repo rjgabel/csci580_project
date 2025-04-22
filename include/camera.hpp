@@ -101,7 +101,7 @@ public:
             Position += vec3(0.0f, change.y, 0.0f);
         }
 
-        Position = clamp(Position, vec3(-10.0, -2.0, -15.0), vec3(10.0, 10.0, 15.0));
+        Position = clamp(Position, vec3(-10.0, -2.0, -15.0), vec3(10.0, 50.0, 15.0));
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.

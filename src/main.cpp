@@ -35,10 +35,12 @@ float lastFrame = 0.0;
 // Key : Code = Type
 // 0 : 0 = phong
 // 1 : 1 = blinn-phong
+// 2 : 2 = cook-torrance
 int specular_shader_type = 0;
 
 // L : 0 = lambertian
 // O : 1 = oren-nayar
+// K : 2 = disney
 int diffuse_shader_type = 0;
 
 int main()
@@ -213,6 +215,10 @@ void processInput(GLFWwindow *window)
     {
         specular_shader_type = 1;
     }
+    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+    {
+        specular_shader_type = 2;
+    }
 
     if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
     {
@@ -221,6 +227,10 @@ void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
     {
         diffuse_shader_type = 1;
+    }
+    if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
+    {
+        diffuse_shader_type = 2;
     }
 }
 

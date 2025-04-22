@@ -6,20 +6,16 @@ out vec4 FragColor;
 #define PI 3.141592653589f
 #endif
 
-#ifndef ONE_OVER_PI
-#define ONE_OVER_PI (1.0f / PI)
+#ifndef TWO_PI
+#define TWO_PI (2.0f * PI)
 #endif
 
-#ifndef ONE_OVER_TWO_PI
-#define ONE_OVER_TWO_PI (1.0f / (2.0f * PI))
+#ifndef FOUR_PI
+#define FOUR_PI (4.0f * PI)
 #endif
 
-#ifndef ONE_OVER_FOUR_PI
-#define ONE_OVER_FOUR_PI (1.0f / (4.0f * PI))
-#endif
-
-#ifndef ONE_OVER_EIGHT_PI
-#define ONE_OVER_EIGHT_PI (1.0f / (8.0f * PI))
+#ifndef EIGHT_PI
+#define EIGHT_PI (8.0f * PI)
 #endif
 
 #define EPSILON 1e-5
@@ -31,10 +27,12 @@ out vec4 FragColor;
 // Specular Type Codes
 #define PHONG 0
 #define BLINN_PHONG 1
+#define COOK_TORRANCE 2
 
 // Diffuse Type Codes
 #define LAMBERTIAN 0
 #define OREN_NAYAR 1
+#define DISNEY 2
 
 struct Camera
 {
@@ -61,7 +59,6 @@ struct Material
     float metalness;
     float roughness;
     float reflectance;
-    float reflectivity;
 };
 
 struct Object
@@ -70,10 +67,17 @@ struct Object
     int index;
 };
 
-struct Light
+struct PointLight
 {
     vec3 position;
     float radius;
+    vec3 color;
+    float power;
+};
+
+struct DirectionLight
+{
+    vec3 direction;
     vec3 color;
     float power;
 };
@@ -99,15 +103,17 @@ uniform Camera cam;
 uniform int specular_shader_type;
 uniform int diffuse_shader_type;
 
-vec3 ambient_color = vec3(1.0);
-float ambient_intensity = 0.1;
+float ambient_intensity = 0.2;
 
 const Material material_list[] = Material[]
 (
-    Material(vec3(1.0, 0.1, 0.1), 0.1, 0.8, 0.2, 0.01),
-    Material(vec3(0.1, 1.0, 0.1), 0.1, 0.8, 0.2, 0.01),
-    Material(vec3(0.1, 0.1, 1.0), 0.01, 0.6, 0.1, 0.01),
-    Material(vec3(1.0), 0.5, 0.5, 0.5, 0.5)
+    Material(vec3(1.0, 0.1, 0.1), 0.05, 0.8, 0.2),
+    Material(vec3(0.1, 1.0, 0.1), 0.05, 0.8, 0.2),
+    Material(vec3(0.1, 0.1, 1.0), 0.0, 0.6, 0.1),
+    Material(vec3(1.0), 1.0, 0.5, 0.5),
+    Material(vec3(1.0, 1.0, 0.1), 0.01, 0.5, 0.1),
+    Material(vec3(1.0, 0.1, 1.0), 0.01, 0.5, 0.1),
+    Material(vec3(1.0, 0.5, 0.1), 0.0, 0.5, 0.1)
 );
 
 const Object obj_list[] = Object[]
@@ -115,6 +121,10 @@ const Object obj_list[] = Object[]
     Object(LIGHT, 0),
     Object(LIGHT, 1),
     Object(LIGHT, 2),
+    Object(LIGHT, 3),
+    Object(LIGHT, 4),
+    Object(LIGHT, 5),
+    Object(LIGHT, 6),
     Object(SPHERE, 0),
     Object(SPHERE, 1),
     Object(PLANE, 0),
@@ -125,27 +135,36 @@ const Object obj_list[] = Object[]
     Object(PLANE, 5)
 );
 
-const Light light_list[] = Light[]
+const PointLight p_light_list[] = PointLight[]
 (
-    Light(vec3(0.0, 1.0, 0.0), 0.25, vec3(1.0, 1.0, 1.0), 400.0),
-    Light(vec3(-8.0, 8.0, -10.0), 0.25, vec3(0.0, 1.0, 1.0), 400.0),
-    Light(vec3(8.0, 8.0, -10.0), 0.25, vec3(1.0, 0.0, 1.0), 400.0)
+    PointLight(vec3(0.0, -0.5, 0.0), 0.25, vec3(1.0, 1.0, 1.0), 200.0),
+    PointLight(vec3(-8.0, 1.0, 0.0), 0.125, vec3(1.0, 1.0, 1.0), 100.0),
+    PointLight(vec3(-8.0, 1.0, 8.0), 0.125, vec3(1.0, 1.0, 1.0), 100.0),
+    PointLight(vec3(8.0, 1.0, 0.0), 0.125, vec3(1.0, 1.0, 1.0), 100.0),
+    PointLight(vec3(8.0, 1.0, 8.0), 0.125, vec3(1.0, 1.0, 1.0), 100.0),
+    PointLight(vec3(8.0, 8.0, -10.0), 0.125, vec3(0.0, 1.0, 1.0), 100.0),
+    PointLight(vec3(-8.0, 8.0, -10.0), 0.125, vec3(1.0, 0.0, 1.0), 100.0)
+);
+
+const DirectionLight d_light_list[] = DirectionLight[]
+(
+    DirectionLight(vec3(0.0, -1.0, -0.2), vec3(1.0, 1.0, 1.0), 4.0)
 );
 
 const Sphere sphere_list[] = Sphere[]
 (
-    Sphere(vec3(-3.0, -1.0, -7.0), 1.0, material_list[0]),
-    Sphere(vec3(3.0, -1.0, -7.0), 1.0, material_list[1])
+    Sphere(vec3(-3.0, -1.0, -3.0), 1.0, material_list[0]),
+    Sphere(vec3(0.0, -1.0, -3.0), 1.0, material_list[1])
 );
 
 const Plane plane_list[] = Plane[]
 (
     Plane(vec3(0.0, 1.0, 0.0), vec3(0.0, -2.0, 0.0), material_list[2]),
-    Plane(vec3(1.0, 0.0, 0.0), vec3(-10.0, 0.0, 0.0), material_list[3]),
-    Plane(vec3(-1.0, 0.0, 0.0), vec3(10.0, 0.0, 0.0), material_list[3]),
+    Plane(vec3(0.0, -1.0, 0.0), vec3(0.0, 50.0, 0.0), material_list[3]),
     Plane(vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, -15.0), material_list[3]),
-    Plane(vec3(0.0, -1.0, 0.0), vec3(0.0, 10.0, 0.0), material_list[3]),
-    Plane(vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, 15.0), material_list[3])
+    Plane(vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, 15.0), material_list[6]),
+    Plane(vec3(1.0, 0.0, 0.0), vec3(-10.0, 0.0, 0.0), material_list[4]),
+    Plane(vec3(-1.0, 0.0, 0.0), vec3(10.0, 0.0, 0.0), material_list[5])
 );
 
 vec3 rayPoint(Ray ray, float t)
@@ -153,7 +172,7 @@ vec3 rayPoint(Ray ray, float t)
     return ray.origin + ray.direction * t;
 }
 
-float intersectLight(Ray ray, Light light)
+float intersectLight(Ray ray, PointLight light)
 {
     vec3 c_o = ray.origin - light.position;
     float b = dot(ray.direction, c_o);
@@ -200,6 +219,11 @@ float intersectPlane(Ray ray, Plane plane)
     return -1.0; // No intersect
 }
 
+float luminance(vec3 rgb)
+{
+    return dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+}
+
 Hit closestHit(Ray ray, bool check_light)
 {
     Hit closest_hit = Hit(-1, 1.0 / 0.0);
@@ -216,7 +240,7 @@ Hit closestHit(Ray ray, bool check_light)
                 check_dist = intersectPlane(ray, plane_list[obj_list[i].index]);
                 break;
             case LIGHT:
-                check_dist = check_light ? intersectLight(ray, light_list[obj_list[i].index]) : check_dist;
+                check_dist = check_light ? intersectLight(ray, p_light_list[obj_list[i].index]) : check_dist;
         }
 
         if (check_dist > EPSILON && check_dist < closest_hit.dist)
@@ -234,14 +258,14 @@ vec3 fresnelSchlick(vec3 F0, vec3 N, vec3 V)
     return F0 + (vec3(1.0) - F0) * (1.0 - pow(dot(N, V), 5.0));
 }
 
-float orenNayarDiffuse(vec3 N, vec3 L, vec3 V, float sigma)
+float orenNayar(vec3 N, vec3 L, vec3 V, float sigma)
 {
     float A = 1.0 - 0.5 * sigma / (sigma + 0.33);
     float B = 0.45 * sigma / (sigma + 0.09);
 
     vec3 proj_V = normalize(V - dot(V, N) * N);
     vec3 proj_L = normalize(L - dot(V, N) * N);
-    float cos_phi_diff = max(0, dot(proj_V, proj_L));
+    float cos_phi_diff = max(0.0, dot(proj_V, proj_L));
 
     float theta_l = acos(dot(N, L));
     float theta_v = acos(dot(N, V));
@@ -251,40 +275,123 @@ float orenNayarDiffuse(vec3 N, vec3 L, vec3 V, float sigma)
     return (A + B * cos_phi_diff) * sin(alpha) * tan(beta);
 }
 
-float phongSpecular(vec3 N, vec3 L, vec3 V, float shininess)
+float disney(vec3 N, vec3 L, vec3 V, float alpha)
 {
-    float energy_conserve = (shininess + 2.0) * ONE_OVER_TWO_PI;
+    vec3 H = normalize(L + V);
+    float LdotH = max(0.0, dot(L, H));
+    float NdotL = max(0.0, dot(N, L));
+    float NdotV = max(0.0, dot(N, V));
+
+    float F_D90_minus_1 = 2 * alpha * LdotH * LdotH - 0.5;
+
+    return (1.0 + F_D90_minus_1 * pow(1 - NdotL, 5.0)) * (1.0 + F_D90_minus_1 * pow(1 - NdotV, 5.0));
+}
+
+float phong(vec3 N, vec3 L, vec3 V, float shininess)
+{
+    float energy_conserve = (shininess + 2.0) / TWO_PI;
     vec3 R = reflect(-L, N);
     return energy_conserve * pow(max(0.0, dot(R, V)), shininess);
 }
 
-float blinnPhongSpecular(vec3 N, vec3 L, vec3 V, float shininess)
+float blinnPhong(vec3 N, vec3 L, vec3 V, float shininess)
 {
-    float energy_conserve = ((shininess + 2.0) * (shininess + 4.0)) * ONE_OVER_EIGHT_PI / (pow(2.0, -shininess / 2.0) + shininess);
+    float energy_conserve = ((shininess + 2.0) * (shininess + 4.0)) / (EIGHT_PI * (pow(2.0, -shininess / 2.0) + shininess));
     vec3 H = normalize(L + V);
-    return energy_conserve * pow(max(0.0, dot(H, N)), shininess);
+    return energy_conserve * pow(max(0.0, dot(N, H)), shininess);
 }
 
-vec3 shade(Ray ray, vec3 hit_point, vec3 normal, Material material, out vec3 reflectivity)
+float cookTorrance(vec3 N, vec3 L, vec3 V, float alpha2)
 {
-    vec3 result = vec3(0);
+    alpha2 = max(EPSILON, alpha2);
+
+    vec3 H = normalize(L + V);
+    float NdotH = max(EPSILON, dot(N, H));
+    float NdotL = max(EPSILON, dot(N, L));
+    float NdotV = max(EPSILON, dot(N, V));
+    float VdotH = max(EPSILON, dot(V, H));
+    
+    float cos_theta2 = NdotH * NdotH;
+    float cos_theta4 = cos_theta2 * cos_theta2;
+    float D = exp((cos_theta2 - 1) / (cos_theta2 * alpha2)) / (PI * alpha2 * cos_theta4);
+    
+    float G = min(1, min(2 * NdotH * NdotV / VdotH, 2 * NdotH * NdotL / VdotH));
+    
+    return D * G / (PI * NdotL * NdotV);
+}
+
+vec3 calcDiffSpec(Material material, vec3 normal, vec3 to_light, vec3 to_view, vec3 F0, vec3 diffuse_reflectance, vec3 light_intensity)
+{
+    vec3 fresnel_term = fresnelSchlick(F0, normal, to_view);
+
+    float alpha = material.roughness * material.roughness;
+    float alpha2 = alpha * alpha;
+
+    // specular
+    vec3 specular = vec3(0.0);
+    float k_spec;
+
+    if (specular_shader_type == PHONG)
+    {
+        float shininess = 2.0 / clamp(alpha2, EPSILON, 1.0 - EPSILON) - 2.0;
+        k_spec = phong(normal, to_light, to_view, shininess);
+    }
+    else if (specular_shader_type == BLINN_PHONG)
+    {
+        float shininess = 2.0 / clamp(alpha2, EPSILON, 1.0 - EPSILON) - 2.0;
+        shininess *= 4.0;
+        k_spec = blinnPhong(normal, to_light, to_view, shininess);
+    }
+    else if (specular_shader_type == COOK_TORRANCE)
+    {
+        k_spec = cookTorrance(normal, to_light, to_view, alpha2);
+    }
+
+    specular = k_spec * fresnel_term;
+
+    // diffuse
+    vec3 diffuse = vec3(0.0);
+    float k_diff = 1.0; // default: 1.0 is Lambertian
+
+    if (diffuse_shader_type == OREN_NAYAR)
+    {
+        // beckmann roughness to oren-nayar roughness
+        float sigma = 0.7071068 * atan(alpha);
+        k_diff = orenNayar(normal, to_light, to_view, sigma);
+    }
+    else if (diffuse_shader_type == DISNEY)
+    {
+        k_diff = disney(normal, to_light, to_view, alpha);
+    }
+
+    diffuse = k_diff * diffuse_reflectance / PI;
+    diffuse *= (1 - fresnel_term);
+
+    return (diffuse + specular) * light_intensity * max(0.0, dot(normal, to_light)) * max(0.0, dot(normal, to_view));
+}
+
+vec3 shade(Ray ray, Material material, vec3 hit_point, vec3 normal, out float reflectivity)
+{
+    vec3 result = vec3(0.0);
 
     vec3 to_view = -ray.direction;
 
-    vec3 min_dielectric_F0 = vec3(0.16 * material.reflectance * material.reflectance);
-    vec3 F0 = mix(min_dielectric_F0, material.color, material.metalness);
-    reflectivity = F0 * F0;
+    vec3 min_F0 = max(vec3(0.16 * material.reflectance * material.reflectance), 0.02);
+    vec3 F0 = mix(min_F0, material.color, material.metalness);
+    reflectivity = luminance(F0);
+    reflectivity *= reflectivity;
 
     vec3 diffuse_reflectance = material.color * (1.0 - material.metalness);
-    vec3 fresnel_adjust = 1 - fresnelSchlick(F0, normal, to_view);
 
-    // ambient
-    result = material.color * ambient_color * ambient_intensity;
-
-    for (int i = 0; i < light_list.length(); i++)
+    for (int i = 0; i < p_light_list.length(); i++)
     {
-        vec3 to_light = normalize(light_list[i].position - hit_point);
-        float to_light_dist = distance(light_list[i].position, hit_point);
+        vec3 to_light = normalize(p_light_list[i].position - hit_point);
+        float to_light_dist = distance(p_light_list[i].position, hit_point);
+        float to_light_dist2 = max(EPSILON, to_light_dist * to_light_dist);
+        vec3 light_intensity = p_light_list[i].color * p_light_list[i].power / (FOUR_PI * to_light_dist2);
+        
+        // ambient
+        result += diffuse_reflectance * ambient_intensity * light_intensity;
 
         bool inside_shadow = false;
 
@@ -297,68 +404,53 @@ vec3 shade(Ray ray, vec3 hit_point, vec3 normal, Material material, out vec3 ref
 
         if (!inside_shadow)
         {
-            float to_light_dist2 = max(EPSILON, to_light_dist * to_light_dist);
-
-            // light intensity
-            vec3 light_intensity = light_list[i].color * light_list[i].power * ONE_OVER_FOUR_PI / to_light_dist2;
-
-            // beckmann roughness
-            float alpha = max(material.roughness * material.roughness, EPSILON);
-
-            // specular
-            vec3 specular = vec3(0);
-            float k_spec;
-
-            if (specular_shader_type == PHONG)
-            {
-                float shininess = 2.0 / clamp(alpha * alpha, EPSILON, 1.0 - EPSILON) - 2.0;
-                k_spec = phongSpecular(to_light, normal, -ray.direction, shininess);
-            }
-            else if (specular_shader_type == BLINN_PHONG)
-            {
-                float shininess = 2.0 / clamp(alpha * alpha, EPSILON, 1.0 - EPSILON) - 2.0;
-                shininess *= 4.0;
-                k_spec = blinnPhongSpecular(to_light, normal, -ray.direction, shininess);
-            }
-
-            specular = k_spec * F0;
-
-            // diffuse
-            vec3 diffuse = vec3(0);
-            float k_diff = 1.0; // default: 1.0 is Lambertian
-
-            if (diffuse_shader_type == OREN_NAYAR)
-            {
-                // beckmann roughness to oren-nayar roughness
-                float sigma = 0.7071068 * atan(alpha);
-                k_diff = orenNayarDiffuse(normal, to_light, -ray.direction, sigma);
-            }
-
-            diffuse = k_diff * diffuse_reflectance * ONE_OVER_PI * fresnel_adjust;
-
-            result += (diffuse + specular) * light_intensity * max(0.0, dot(normal, to_light));
+            result += calcDiffSpec(material, normal, to_light, to_view, F0, diffuse_reflectance, light_intensity);
         }
     }
+
+    // for (int i = 0; i < d_light_list.length(); i++)
+    // {
+    //     vec3 to_light = normalize(-d_light_list[i].direction);
+    //     vec3 light_intensity = d_light_list[i].color * d_light_list[i].power;
+
+    //     result += diffuse_reflectance * ambient_intensity * light_intensity;
+
+    //     bool inside_shadow = false;
+
+    //     Hit check_occlusion = closestHit(Ray(hit_point, to_light), false);
+
+    //     if (check_occlusion.obj_id != -1)
+    //     {
+    //         inside_shadow = true;
+    //     }
+
+    //     if (!inside_shadow)
+    //     {
+    //         result += calcDiffSpec(material, normal, to_light, to_view, F0, diffuse_reflectance, light_intensity);
+    //     }
+    // }
 
     return result;
 }
 
 vec3 castRay(Ray ray)
 {
-    vec3 result = vec3(0);
+    vec3 result = vec3(0.0);
 
     Ray curr_ray = ray;
-    vec3 reflect_mult = vec3(1.0);
+    float total_dist = 0;
+    float reflect_mult = 1.0;
 
     for (int i = 0; i < 5; i++)
     {
         Hit closest_hit = closestHit(curr_ray, true);
 
-        if (closest_hit.obj_id != -1 && closest_hit.dist > cam.near && closest_hit.dist < cam.far)
+        if (closest_hit.obj_id != -1 && closest_hit.dist > cam.near && (closest_hit.dist + total_dist) < cam.far)
         {
             if (obj_list[closest_hit.obj_id].type == LIGHT)
             {
-                vec3 light_intensity = light_list[closest_hit.obj_id].color * light_list[closest_hit.obj_id].power / (i + 1);
+                float to_light_dist2 = clamp(closest_hit.dist * closest_hit.dist, EPSILON, p_light_list[closest_hit.obj_id].power);
+                vec3 light_intensity = p_light_list[closest_hit.obj_id].color * p_light_list[closest_hit.obj_id].power / to_light_dist2;
                 result += light_intensity * reflect_mult;
                 break;
             }
@@ -382,20 +474,25 @@ vec3 castRay(Ray ray)
                 normal *= -1.0;
             }
 
-            vec3 reflectivity = vec3(0);
+            float reflectivity = 0;
 
-            result += shade(curr_ray, hit_point, normal, material, reflectivity) * reflect_mult;
+            result += shade(curr_ray, material, hit_point, normal, reflectivity) * reflect_mult;
 
-            if (length(reflectivity) > EPSILON)
+            if (reflectivity > EPSILON)
             {
                 vec3 reflect_vec = reflect(curr_ray.direction, normal);
                 curr_ray = Ray(hit_point, reflect_vec);
                 reflect_mult *= reflectivity;
+                total_dist += closest_hit.dist;
             }
             else
             {
                 break;
             }
+        }
+        else
+        {
+            break;
         }
     }
 
