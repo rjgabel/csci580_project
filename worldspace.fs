@@ -32,7 +32,7 @@ out vec4 FragColor;
 // Diffuse Type Codes
 #define LAMBERTIAN 0
 #define OREN_NAYAR 1
-#define DISNEY 2
+#define DISNEY_DIFFUSE 2
 
 struct Camera
 {
@@ -275,14 +275,14 @@ float orenNayar(vec3 N, vec3 L, vec3 V, float sigma)
     return (A + B * cos_phi_diff) * sin(alpha) * tan(beta);
 }
 
-float disney(vec3 N, vec3 L, vec3 V, float alpha)
+float disneyDiffuse(vec3 N, vec3 L, vec3 V, float roughness)
 {
     vec3 H = normalize(L + V);
     float LdotH = max(0.0, dot(L, H));
     float NdotL = max(0.0, dot(N, L));
     float NdotV = max(0.0, dot(N, V));
 
-    float F_D90_minus_1 = 2 * alpha * LdotH * LdotH - 0.5;
+    float F_D90_minus_1 = 2 * roughness * LdotH * LdotH - 0.5;
 
     return (1.0 + F_D90_minus_1 * pow(1 - NdotL, 5.0)) * (1.0 + F_D90_minus_1 * pow(1 - NdotV, 5.0));
 }
@@ -309,20 +309,21 @@ float cookTorrance(vec3 N, vec3 L, vec3 V, float alpha2)
     float NdotH = max(EPSILON, dot(N, H));
     float NdotL = max(EPSILON, dot(N, L));
     float NdotV = max(EPSILON, dot(N, V));
-    float VdotH = max(EPSILON, dot(V, H));
+    float HdotV = max(EPSILON, dot(H, V));
     
     float cos_theta2 = NdotH * NdotH;
     float cos_theta4 = cos_theta2 * cos_theta2;
     float D = exp((cos_theta2 - 1) / (cos_theta2 * alpha2)) / (PI * alpha2 * cos_theta4);
     
-    float G = min(1, min(2 * NdotH * NdotV / VdotH, 2 * NdotH * NdotL / VdotH));
+    float G = min(1, min(2 * NdotH * NdotV / HdotV, 2 * NdotH * NdotL / HdotV));
     
     return D * G / (PI * NdotL * NdotV);
 }
 
-vec3 calcDiffSpec(Material material, vec3 normal, vec3 to_light, vec3 to_view, vec3 F0, vec3 diffuse_reflectance, vec3 light_intensity)
+vec3 calcDiffSpec(Material material, vec3 N, vec3 L, vec3 V, vec3 F0, vec3 diffuse_reflectance, vec3 light_intensity)
 {
-    vec3 fresnel_term = fresnelSchlick(F0, normal, to_view);
+    vec3 H = normalize(V + L);
+    vec3 fresnel_term = fresnelSchlick(F0, H, V);
 
     float alpha = material.roughness * material.roughness;
     float alpha2 = alpha * alpha;
@@ -334,17 +335,17 @@ vec3 calcDiffSpec(Material material, vec3 normal, vec3 to_light, vec3 to_view, v
     if (specular_shader_type == PHONG)
     {
         float shininess = 2.0 / clamp(alpha2, EPSILON, 1.0 - EPSILON) - 2.0;
-        k_spec = phong(normal, to_light, to_view, shininess);
+        k_spec = phong(N, L, V, shininess);
     }
     else if (specular_shader_type == BLINN_PHONG)
     {
         float shininess = 2.0 / clamp(alpha2, EPSILON, 1.0 - EPSILON) - 2.0;
         shininess *= 4.0;
-        k_spec = blinnPhong(normal, to_light, to_view, shininess);
+        k_spec = blinnPhong(N, L, V, shininess);
     }
     else if (specular_shader_type == COOK_TORRANCE)
     {
-        k_spec = cookTorrance(normal, to_light, to_view, alpha2);
+        k_spec = cookTorrance(N, L, V, alpha2);
     }
 
     specular = k_spec * fresnel_term;
@@ -357,20 +358,23 @@ vec3 calcDiffSpec(Material material, vec3 normal, vec3 to_light, vec3 to_view, v
     {
         // beckmann roughness to oren-nayar roughness
         float sigma = 0.7071068 * atan(alpha);
-        k_diff = orenNayar(normal, to_light, to_view, sigma);
+        k_diff = orenNayar(N, L, V, sigma);
     }
-    else if (diffuse_shader_type == DISNEY)
+    else if (diffuse_shader_type == DISNEY_DIFFUSE)
     {
-        k_diff = disney(normal, to_light, to_view, alpha);
+        k_diff = disneyDiffuse(N, L, V, material.roughness);
     }
 
     diffuse = k_diff * diffuse_reflectance / PI;
-    diffuse *= (1 - fresnel_term);
+    if (diffuse_shader_type != DISNEY_DIFFUSE)
+    {
+        diffuse *= (1 - fresnel_term);
+    }
 
-    return (diffuse + specular) * light_intensity * max(0.0, dot(normal, to_light)) * max(0.0, dot(normal, to_view));
+    return (diffuse + specular) * light_intensity * max(0.0, dot(N, L)) * max(0.0, dot(N, V));
 }
 
-vec3 shade(Ray ray, Material material, vec3 hit_point, vec3 normal, out float reflectivity)
+vec3 shade(Ray ray, Material material, vec3 hit_point, vec3 normal, out vec3 reflectivity)
 {
     vec3 result = vec3(0.0);
 
@@ -378,8 +382,7 @@ vec3 shade(Ray ray, Material material, vec3 hit_point, vec3 normal, out float re
 
     vec3 min_F0 = max(vec3(0.16 * material.reflectance * material.reflectance), 0.02);
     vec3 F0 = mix(min_F0, material.color, material.metalness);
-    reflectivity = luminance(F0);
-    reflectivity *= reflectivity;
+    reflectivity = F0 * F0;
 
     vec3 diffuse_reflectance = material.color * (1.0 - material.metalness);
 
@@ -439,7 +442,7 @@ vec3 castRay(Ray ray)
 
     Ray curr_ray = ray;
     float total_dist = 0;
-    float reflect_mult = 1.0;
+    vec3 reflect_mult = vec3(1.0);
 
     for (int i = 0; i < 5; i++)
     {
@@ -474,11 +477,11 @@ vec3 castRay(Ray ray)
                 normal *= -1.0;
             }
 
-            float reflectivity = 0;
+            vec3 reflectivity = vec3(0);
 
             result += shade(curr_ray, material, hit_point, normal, reflectivity) * reflect_mult;
 
-            if (reflectivity > EPSILON)
+            if (luminance(reflectivity) > EPSILON)
             {
                 vec3 reflect_vec = reflect(curr_ray.direction, normal);
                 curr_ray = Ray(hit_point, reflect_vec);
