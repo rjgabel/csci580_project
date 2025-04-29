@@ -43,7 +43,12 @@ public:
     float MouseSensitivity;
     float Zoom;
 
-    Camera(vec3 position = vec3(0.0f, 0.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : WorldUp(vec3(0.0f, 1.0f, 0.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
+    vec3 LimitMin;
+    vec3 LimitMax;
+
+    Camera(vec3 position = vec3(0.0f, 0.0f, 0.0f), float yaw = YAW, float pitch = PITCH) :
+        WorldUp(vec3(0.0f, 1.0f, 0.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM),
+        LimitMin(vec3(-100.0, -100.0, -100.0)), LimitMax(vec3(100.0, 100.0, 100.0))
     {
         Position = position;
         Yaw = yaw;
@@ -101,7 +106,7 @@ public:
             Position += vec3(0.0f, change.y, 0.0f);
         }
 
-        Position = clamp(Position, vec3(-10.0, -2.0, -15.0), vec3(10.0, 50.0, 15.0));
+        Position = clamp(Position, LimitMin, LimitMax);
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.

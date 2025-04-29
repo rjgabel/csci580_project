@@ -1,4 +1,6 @@
 #include <iostream>
+#include <string>
+#include <sstream>
 
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
@@ -33,6 +35,7 @@ float deltaTime = 0.0;
 float lastFrame = 0.0;
 
 // Key : Code = Type
+
 // 0 : 0 = phong
 // 1 : 1 = blinn-phong
 // 2 : 2 = cook-torrance
@@ -43,8 +46,44 @@ int specular_shader_type = 0;
 // K : 2 = disney
 int diffuse_shader_type = 0;
 
-int main()
+int main(int argc, char **argv)
 {
+    if (argc > 2)
+    {
+        cerr << "Too many parameters" << endl;
+        return -1;
+    }
+
+    int demo_num;
+
+    if (argc < 2)
+    {
+        demo_num = 1;
+    }
+
+    if (argc == 2)
+    {
+        istringstream arg_stream(argv[1]);
+
+        if (!(arg_stream >> noskipws >> demo_num))
+        {
+            cerr << "Invalid parameter input type" << endl;
+            return -1;
+        }
+
+        if (demo_num < 1 || demo_num > 2)
+        {
+            cerr << "Invalid demo number" << endl;
+            return -1;
+        }
+    }
+
+    if (demo_num == 1)
+    {
+        camera.LimitMin = vec3(-10.0, -2.0, -15.0);
+        camera.LimitMax = vec3(10.0, 50.0, 15.0);
+    }
+
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -80,15 +119,24 @@ int main()
     glEnable(GL_DEPTH_TEST);
 
     Shader *lightingShader;
+
+    string scene_frag_shader = "scene";
+
+    scene_frag_shader += to_string(demo_num) + ".fs";
+    cout << "Selected demo " << demo_num << endl;
+
     try
     {
-        lightingShader = new Shader("worldspace.vs", "worldspace.fs");
+        lightingShader = new Shader("scene_vert.vs", scene_frag_shader.c_str());
     }
     catch (const int e)
     {
         glfwTerminate();
         return e;
     }
+
+    // camera.LimitMin = vec3(-10.0, -2.0, -15.0);
+    // camera.LimitMax = vec3(10.0, 50.0, 15.0);
 
     float vertices[] = {
         -1.0f, -1.0f, 0.0f, // bottom left

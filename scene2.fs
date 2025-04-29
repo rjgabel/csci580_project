@@ -59,6 +59,8 @@ struct Material
     float metalness;
     float roughness;
     float reflectance;
+    float sheen_strength;
+    float sheen_tint;
 };
 
 struct Object
@@ -107,64 +109,212 @@ float ambient_intensity = 0.2;
 
 const Material material_list[] = Material[]
 (
-    Material(vec3(1.0, 0.1, 0.1), 0.05, 0.8, 0.2),
-    Material(vec3(0.1, 1.0, 0.1), 0.05, 0.8, 0.2),
-    Material(vec3(0.1, 0.1, 1.0), 0.0, 0.6, 0.1),
-    Material(vec3(1.0), 1.0, 0.5, 0.5),
-    Material(vec3(1.0, 1.0, 0.1), 0.01, 0.5, 0.1),
-    Material(vec3(1.0, 0.1, 1.0), 0.01, 0.5, 0.1),
-    Material(vec3(1.0, 0.5, 0.1), 0.0, 0.5, 0.1)
+    Material(vec3(0.5, 0.5, 0.5), 0.0, 0.6, 0.1, 0.0, 0.0),
+
+    Material(vec3(1.0, 0.5, 0.5), 0.0, 0.5, 0.5, 0.0, 0.0),
+    Material(vec3(1.0, 0.5, 0.5), 0.1, 0.5, 0.5, 0.0, 0.0),
+    Material(vec3(1.0, 0.5, 0.5), 0.2, 0.5, 0.5, 0.0, 0.0),
+    Material(vec3(1.0, 0.5, 0.5), 0.3, 0.5, 0.5, 0.0, 0.0),
+    Material(vec3(1.0, 0.5, 0.5), 0.4, 0.5, 0.5, 0.0, 0.0),
+    Material(vec3(1.0, 0.5, 0.5), 0.5, 0.5, 0.5, 0.0, 0.0),
+    Material(vec3(1.0, 0.5, 0.5), 0.6, 0.5, 0.5, 0.0, 0.0),
+    Material(vec3(1.0, 0.5, 0.5), 0.7, 0.5, 0.5, 0.0, 0.0),
+    Material(vec3(1.0, 0.5, 0.5), 0.8, 0.5, 0.5, 0.0, 0.0),
+    Material(vec3(1.0, 0.5, 0.5), 0.9, 0.5, 0.5, 0.0, 0.0),
+    Material(vec3(1.0, 0.5, 0.5), 1.0, 0.5, 0.5, 0.0, 0.0),
+
+    Material(vec3(0.5, 1.0, 0.5), 0.5, 0.0, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 1.0, 0.5), 0.5, 0.1, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 1.0, 0.5), 0.5, 0.2, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 1.0, 0.5), 0.5, 0.3, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 1.0, 0.5), 0.5, 0.4, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 1.0, 0.5), 0.5, 0.5, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 1.0, 0.5), 0.5, 0.6, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 1.0, 0.5), 0.5, 0.7, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 1.0, 0.5), 0.5, 0.8, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 1.0, 0.5), 0.5, 0.9, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 1.0, 0.5), 0.5, 1.0, 0.5, 0.0, 0.0),
+
+    Material(vec3(0.5, 0.5, 0.01), 0.0, 0.0, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 0.5, 0.01), 0.0, 0.1, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 0.5, 0.01), 0.0, 0.2, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 0.5, 0.01), 0.0, 0.3, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 0.5, 0.01), 0.0, 0.4, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 0.5, 0.01), 0.0, 0.5, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 0.5, 0.01), 0.0, 0.6, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 0.5, 0.01), 0.0, 0.7, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 0.5, 0.01), 0.0, 0.8, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 0.5, 0.01), 0.0, 0.9, 0.5, 0.0, 0.0),
+    Material(vec3(0.5, 0.5, 0.01), 0.0, 1.0, 0.5, 0.0, 0.0),
+
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 0.0, 0.0),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 0.1, 0.0),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 0.2, 0.0),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 0.3, 0.0),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 0.4, 0.0),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 0.5, 0.0),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 0.6, 0.0),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 0.7, 0.0),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 0.8, 0.0),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 0.9, 0.0),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 1.0, 0.0),
+
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 1.0, 0.0),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 1.0, 0.1),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 1.0, 0.2),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 1.0, 0.3),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 1.0, 0.4),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 1.0, 0.5),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 1.0, 0.6),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 1.0, 0.7),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 1.0, 0.8),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 1.0, 0.9),
+    Material(vec3(0.01, 0.01, 0.5), 0.0, 1.0, 0.7, 1.0, 1.0)
 );
 
 const Object obj_list[] = Object[]
 (
-    Object(LIGHT, 0),
-    Object(LIGHT, 1),
-    Object(LIGHT, 2),
-    Object(LIGHT, 3),
-    Object(LIGHT, 4),
-    Object(LIGHT, 5),
-    Object(LIGHT, 6),
-    Object(SPHERE, 0),
-    Object(SPHERE, 1),
-    Object(PLANE, 0),
-    Object(PLANE, 1),
-    Object(PLANE, 2),
-    Object(PLANE, 3),
-    Object(PLANE, 4),
-    Object(PLANE, 5)
+    // Object(PLANE,  0),
+
+    Object(SPHERE,  0),
+    Object(SPHERE,  1),
+    Object(SPHERE,  2),
+    Object(SPHERE,  3),
+    Object(SPHERE,  4),
+    Object(SPHERE,  5),
+    Object(SPHERE,  6),
+    Object(SPHERE,  7),
+    Object(SPHERE,  8),
+    Object(SPHERE,  9),
+    Object(SPHERE, 10),
+
+    Object(SPHERE, 11),
+    Object(SPHERE, 12),
+    Object(SPHERE, 13),
+    Object(SPHERE, 14),
+    Object(SPHERE, 15),
+    Object(SPHERE, 16),
+    Object(SPHERE, 17),
+    Object(SPHERE, 18),
+    Object(SPHERE, 19),
+    Object(SPHERE, 20),
+    Object(SPHERE, 21),
+
+    Object(SPHERE, 22),
+    Object(SPHERE, 23),
+    Object(SPHERE, 24),
+    Object(SPHERE, 25),
+    Object(SPHERE, 26),
+    Object(SPHERE, 27),
+    Object(SPHERE, 28),
+    Object(SPHERE, 29),
+    Object(SPHERE, 30),
+    Object(SPHERE, 31),
+    Object(SPHERE, 32),
+
+    Object(SPHERE, 33),
+    Object(SPHERE, 34),
+    Object(SPHERE, 35),
+    Object(SPHERE, 36),
+    Object(SPHERE, 37),
+    Object(SPHERE, 38),
+    Object(SPHERE, 39),
+    Object(SPHERE, 40),
+    Object(SPHERE, 41),
+    Object(SPHERE, 42),
+    Object(SPHERE, 43),
+
+    Object(SPHERE, 44),
+    Object(SPHERE, 45),
+    Object(SPHERE, 46),
+    Object(SPHERE, 47),
+    Object(SPHERE, 48),
+    Object(SPHERE, 49),
+    Object(SPHERE, 50),
+    Object(SPHERE, 51),
+    Object(SPHERE, 52),
+    Object(SPHERE, 53),
+    Object(SPHERE, 54)
 );
 
+const int p_light_num = 0;
 const PointLight p_light_list[] = PointLight[]
 (
-    PointLight(vec3(0.0, -0.5, 0.0), 0.25, vec3(1.0, 1.0, 1.0), 200.0),
-    PointLight(vec3(-8.0, 1.0, 0.0), 0.125, vec3(1.0, 1.0, 1.0), 100.0),
-    PointLight(vec3(-8.0, 1.0, 8.0), 0.125, vec3(1.0, 1.0, 1.0), 100.0),
-    PointLight(vec3(8.0, 1.0, 0.0), 0.125, vec3(1.0, 1.0, 1.0), 100.0),
-    PointLight(vec3(8.0, 1.0, 8.0), 0.125, vec3(1.0, 1.0, 1.0), 100.0),
-    PointLight(vec3(8.0, 8.0, -10.0), 0.125, vec3(0.0, 1.0, 1.0), 100.0),
-    PointLight(vec3(-8.0, 8.0, -10.0), 0.125, vec3(1.0, 0.0, 1.0), 100.0)
+    PointLight(vec3(0.0, 0.0, 0.0), 0.25, vec3(1.0, 1.0, 1.0), 200.0)
 );
 
+const int d_light_num = 1;
 const DirectionLight d_light_list[] = DirectionLight[]
 (
-    DirectionLight(vec3(0.0, -1.0, -0.2), vec3(1.0, 1.0, 1.0), 4.0)
+    DirectionLight(vec3(0.0, 0.0, -1.0), vec3(1.0, 1.0, 1.0), 2.5)
 );
 
 const Sphere sphere_list[] = Sphere[]
 (
-    Sphere(vec3(-3.0, -1.0, -3.0), 1.0, material_list[0]),
-    Sphere(vec3(0.0, -1.0, -3.0), 1.0, material_list[1])
+    Sphere(vec3(-15.0, 6.0, -30.0), 1.0, material_list[1]),
+    Sphere(vec3(-12.0, 6.0, -30.0), 1.0, material_list[2]),
+    Sphere(vec3( -9.0, 6.0, -30.0), 1.0, material_list[3]),
+    Sphere(vec3( -6.0, 6.0, -30.0), 1.0, material_list[4]),
+    Sphere(vec3( -3.0, 6.0, -30.0), 1.0, material_list[5]),
+    Sphere(vec3(  0.0, 6.0, -30.0), 1.0, material_list[6]),
+    Sphere(vec3(  3.0, 6.0, -30.0), 1.0, material_list[7]),
+    Sphere(vec3(  6.0, 6.0, -30.0), 1.0, material_list[8]),
+    Sphere(vec3(  9.0, 6.0, -30.0), 1.0, material_list[9]),
+    Sphere(vec3( 12.0, 6.0, -30.0), 1.0, material_list[10]),
+    Sphere(vec3( 15.0, 6.0, -30.0), 1.0, material_list[11]),
+
+    Sphere(vec3(-15.0, 3.0, -30.0), 1.0, material_list[12]),
+    Sphere(vec3(-12.0, 3.0, -30.0), 1.0, material_list[13]),
+    Sphere(vec3( -9.0, 3.0, -30.0), 1.0, material_list[14]),
+    Sphere(vec3( -6.0, 3.0, -30.0), 1.0, material_list[15]),
+    Sphere(vec3( -3.0, 3.0, -30.0), 1.0, material_list[16]),
+    Sphere(vec3(  0.0, 3.0, -30.0), 1.0, material_list[17]),
+    Sphere(vec3(  3.0, 3.0, -30.0), 1.0, material_list[18]),
+    Sphere(vec3(  6.0, 3.0, -30.0), 1.0, material_list[19]),
+    Sphere(vec3(  9.0, 3.0, -30.0), 1.0, material_list[20]),
+    Sphere(vec3( 12.0, 3.0, -30.0), 1.0, material_list[21]),
+    Sphere(vec3( 15.0, 3.0, -30.0), 1.0, material_list[22]),
+
+    Sphere(vec3(-15.0, 0.0, -30.0), 1.0, material_list[23]),
+    Sphere(vec3(-12.0, 0.0, -30.0), 1.0, material_list[24]),
+    Sphere(vec3( -9.0, 0.0, -30.0), 1.0, material_list[25]),
+    Sphere(vec3( -6.0, 0.0, -30.0), 1.0, material_list[26]),
+    Sphere(vec3( -3.0, 0.0, -30.0), 1.0, material_list[27]),
+    Sphere(vec3(  0.0, 0.0, -30.0), 1.0, material_list[28]),
+    Sphere(vec3(  3.0, 0.0, -30.0), 1.0, material_list[29]),
+    Sphere(vec3(  6.0, 0.0, -30.0), 1.0, material_list[30]),
+    Sphere(vec3(  9.0, 0.0, -30.0), 1.0, material_list[31]),
+    Sphere(vec3( 12.0, 0.0, -30.0), 1.0, material_list[32]),
+    Sphere(vec3( 15.0, 0.0, -30.0), 1.0, material_list[33]),
+
+    Sphere(vec3(-15.0, -3.0, -30.0), 1.0, material_list[34]),
+    Sphere(vec3(-12.0, -3.0, -30.0), 1.0, material_list[35]),
+    Sphere(vec3( -9.0, -3.0, -30.0), 1.0, material_list[36]),
+    Sphere(vec3( -6.0, -3.0, -30.0), 1.0, material_list[37]),
+    Sphere(vec3( -3.0, -3.0, -30.0), 1.0, material_list[38]),
+    Sphere(vec3(  0.0, -3.0, -30.0), 1.0, material_list[39]),
+    Sphere(vec3(  3.0, -3.0, -30.0), 1.0, material_list[40]),
+    Sphere(vec3(  6.0, -3.0, -30.0), 1.0, material_list[41]),
+    Sphere(vec3(  9.0, -3.0, -30.0), 1.0, material_list[42]),
+    Sphere(vec3( 12.0, -3.0, -30.0), 1.0, material_list[43]),
+    Sphere(vec3( 15.0, -3.0, -30.0), 1.0, material_list[44]),
+
+    Sphere(vec3(-15.0, -6.0, -30.0), 1.0, material_list[45]),
+    Sphere(vec3(-12.0, -6.0, -30.0), 1.0, material_list[46]),
+    Sphere(vec3( -9.0, -6.0, -30.0), 1.0, material_list[47]),
+    Sphere(vec3( -6.0, -6.0, -30.0), 1.0, material_list[48]),
+    Sphere(vec3( -3.0, -6.0, -30.0), 1.0, material_list[49]),
+    Sphere(vec3(  0.0, -6.0, -30.0), 1.0, material_list[50]),
+    Sphere(vec3(  3.0, -6.0, -30.0), 1.0, material_list[51]),
+    Sphere(vec3(  6.0, -6.0, -30.0), 1.0, material_list[52]),
+    Sphere(vec3(  9.0, -6.0, -30.0), 1.0, material_list[53]),
+    Sphere(vec3( 12.0, -6.0, -30.0), 1.0, material_list[54]),
+    Sphere(vec3( 15.0, -6.0, -30.0), 1.0, material_list[55])
 );
 
 const Plane plane_list[] = Plane[]
 (
-    Plane(vec3(0.0, 1.0, 0.0), vec3(0.0, -2.0, 0.0), material_list[2]),
-    Plane(vec3(0.0, -1.0, 0.0), vec3(0.0, 50.0, 0.0), material_list[3]),
-    Plane(vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, -15.0), material_list[3]),
-    Plane(vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, 15.0), material_list[6]),
-    Plane(vec3(1.0, 0.0, 0.0), vec3(-10.0, 0.0, 0.0), material_list[4]),
-    Plane(vec3(-1.0, 0.0, 0.0), vec3(10.0, 0.0, 0.0), material_list[5])
+    Plane(vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, -35.0), material_list[0])
 );
 
 vec3 rayPoint(Ray ray, float t)
@@ -370,8 +520,16 @@ vec3 calcDiffSpec(Material material, vec3 N, vec3 L, vec3 V, vec3 F0, vec3 diffu
     {
         diffuse *= (1 - fresnel_term);
     }
+    else
+    {
+        float obj_luminance = luminance(material.color);
+        vec3 tint = obj_luminance > 0.0 ? normalize(material.color) : vec3(1.0);
+        float HdotL = dot(H, L);
+        vec3 sheen = material.sheen_strength * mix(vec3(1.0), tint, material.sheen_tint) * pow(1 - HdotL, 1.0);
+        diffuse += sheen;
+    }
 
-    return (diffuse + specular) * light_intensity * max(0.0, dot(N, L)) * max(0.0, dot(N, V));
+    return (diffuse + specular) * light_intensity * max(0.0, dot(N, L));
 }
 
 vec3 shade(Ray ray, Material material, vec3 hit_point, vec3 normal, out vec3 reflectivity)
@@ -380,13 +538,13 @@ vec3 shade(Ray ray, Material material, vec3 hit_point, vec3 normal, out vec3 ref
 
     vec3 to_view = -ray.direction;
 
-    vec3 min_F0 = max(vec3(0.16 * material.reflectance * material.reflectance), 0.02);
+    vec3 min_F0 = vec3(max(0.16 * material.reflectance * material.reflectance, 0.02));
     vec3 F0 = mix(min_F0, material.color, material.metalness);
     reflectivity = F0 * F0;
 
     vec3 diffuse_reflectance = material.color * (1.0 - material.metalness);
 
-    for (int i = 0; i < p_light_list.length(); i++)
+    for (int i = 0; i < p_light_num; i++)
     {
         vec3 to_light = normalize(p_light_list[i].position - hit_point);
         float to_light_dist = distance(p_light_list[i].position, hit_point);
@@ -411,27 +569,27 @@ vec3 shade(Ray ray, Material material, vec3 hit_point, vec3 normal, out vec3 ref
         }
     }
 
-    // for (int i = 0; i < d_light_list.length(); i++)
-    // {
-    //     vec3 to_light = normalize(-d_light_list[i].direction);
-    //     vec3 light_intensity = d_light_list[i].color * d_light_list[i].power;
+    for (int i = 0; i < d_light_num; i++)
+    {
+        vec3 to_light = normalize(-d_light_list[i].direction);
+        vec3 light_intensity = d_light_list[i].color * d_light_list[i].power;
 
-    //     result += diffuse_reflectance * ambient_intensity * light_intensity;
+        result += diffuse_reflectance * ambient_intensity * light_intensity;
 
-    //     bool inside_shadow = false;
+        bool inside_shadow = false;
 
-    //     Hit check_occlusion = closestHit(Ray(hit_point, to_light), false);
+        Hit check_occlusion = closestHit(Ray(hit_point, to_light), false);
 
-    //     if (check_occlusion.obj_id != -1)
-    //     {
-    //         inside_shadow = true;
-    //     }
+        if (check_occlusion.obj_id != -1)
+        {
+            inside_shadow = true;
+        }
 
-    //     if (!inside_shadow)
-    //     {
-    //         result += calcDiffSpec(material, normal, to_light, to_view, F0, diffuse_reflectance, light_intensity);
-    //     }
-    // }
+        if (!inside_shadow)
+        {
+            result += calcDiffSpec(material, normal, to_light, to_view, F0, diffuse_reflectance, light_intensity);
+        }
+    }
 
     return result;
 }
@@ -443,6 +601,7 @@ vec3 castRay(Ray ray)
     Ray curr_ray = ray;
     float total_dist = 0;
     vec3 reflect_mult = vec3(1.0);
+    bool hit_something = false;
 
     for (int i = 0; i < 5; i++)
     {
@@ -450,6 +609,7 @@ vec3 castRay(Ray ray)
 
         if (closest_hit.obj_id != -1 && closest_hit.dist > cam.near && (closest_hit.dist + total_dist) < cam.far)
         {
+            hit_something = true;
             if (obj_list[closest_hit.obj_id].type == LIGHT)
             {
                 float to_light_dist2 = clamp(closest_hit.dist * closest_hit.dist, EPSILON, p_light_list[closest_hit.obj_id].power);
@@ -497,6 +657,11 @@ vec3 castRay(Ray ray)
         {
             break;
         }
+    }
+
+    if (!hit_something)
+    {
+        return vec3(0.5);
     }
 
     return result;
