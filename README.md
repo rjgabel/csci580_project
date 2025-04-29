@@ -61,3 +61,8 @@ This program has only one optional parameter, being scene selection. Enter the s
 | 0 | Phong |
 | 1 | Blinn-Phong |
 | 2 | Cook-Torrance |
+
+## Credits
+- For base OpenGL and camera code: Joey de Vries, https://learnopengl.com/
+- For general BRDF formulas: Jakub Boksansky, https://boksajak.github.io/blog/BRDF
+- For Disney diffuse model: Brent Burley, Walt Disney Animation Studios, https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf
